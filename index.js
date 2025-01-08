@@ -44,6 +44,9 @@ const headers = {
     "x-requested-with": "XMLHttpRequest",
 };
 
+app.get("/", async(req, res) => {
+    res.send("Home page of phyo")
+})
 
 app.post("/api/ask", async (req, res) => {
     const { prompt } = req.body
