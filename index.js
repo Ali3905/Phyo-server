@@ -239,7 +239,6 @@ app.post("/api/ask", async (req, res) => {
         const results = await Promise.all(
             foundInfluencers.map(async (influencer) => {
                 try {
-                    // Fetch public Instagram data
                     const response = await axios({
                         method: "get",
                         url: `https://i.instagram.com/api/v1/users/web_profile_info`,
@@ -254,7 +253,6 @@ app.post("/api/ask", async (req, res) => {
                     // Extract recent posts
                     const posts = data.data.user.edge_owner_to_timeline_media.edges;
 
-                    // Calculate average likes and views
                     const totalLikes = posts.reduce((sum, post) => sum + post.node.edge_liked_by.count, 0);
                     const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
                     const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
@@ -277,8 +275,18 @@ app.post("/api/ask", async (req, res) => {
                     };
 
                 } catch (error) {
-                    console.error(`Error fetching data for ${influencer.user_name}:`, error.message);
-                    return influencer.toObject();
+                    console.error(`Error fetching data for ${influencer.user_name}:`, error?.response?.data?.message);
+                    return {
+                        ...influencer.toObject(),
+                        image: null,
+                        instagramData: {
+                            ...influencer.instagramData,
+                            averageLikes: Math.round(0),
+                            averageViews: Math.round(0),
+                            averageComments: Math.round(0),
+                            averageEngagement: 0,
+                        },
+                    }
                 }
             })
         );
