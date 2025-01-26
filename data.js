@@ -1,4 +1,4 @@
-export const data = {
+const data = {
     "input": {
         "url": "https://www.instagram.com/virat.kohli/"
     },
@@ -875,3 +875,5 @@ export const data = {
     ],
     "timestamp": "2025-01-24T21:38:17.822Z"
 }
+
+module.exports = data

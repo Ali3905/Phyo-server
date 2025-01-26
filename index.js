@@ -251,9 +251,12 @@ app.post("/api/ask", async (req, res) => {
 
 
                     // Extract recent posts
-                    const posts = data.posts;
-                    const totalLikes = 0;
-                    const totalComments = 0;
+                    let posts = data.posts;
+                    let totalLikes = 0;
+                    let totalComments = 0;
+
+                    // console.log({posts});
+                    
 
                     posts.forEach((post) => {
                         totalLikes += post.likes;
@@ -270,6 +273,9 @@ app.post("/api/ask", async (req, res) => {
                     const avgEngagement = data.avg_engagement;
                     const image = data.profile_image_link;
 
+                    // console.log({avgLikes, avgComments, avgEngagement, image});
+                    
+
                     return {
                         ...influencer.toObject(),
                         image,
@@ -283,7 +289,7 @@ app.post("/api/ask", async (req, res) => {
                     };
 
                 } catch (error) {
-                    console.error(`Error fetching data for ${influencer.user_name}:`, error?.response?.data?.message);
+                    console.error(`Error fetching data for ${influencer.user_name}:`, error?.message);
                     return {
                         ...influencer.toObject(),
                         image: null,
@@ -369,9 +375,9 @@ app.get("/details", async (req, res) => {
         //     }
         // };
 
-        const posts = data.posts;
-        const totalLikes = 0;
-        const totalComments = 0;
+        let posts = data.posts;
+        let totalLikes = 0;
+        let totalComments = 0;
 
         posts.forEach((post) => {
             totalLikes += post.likes;
