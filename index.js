@@ -4,7 +4,7 @@ const cors = require("cors")
 const { OpenAI } = require("openai")
 const influencer = require("./models/influencer")
 const { connectToMongo } = require("./connections/db")
-const axios = require("axios")
+const data = require("./data")
 
 const app = express()
 const PORT = 8000
@@ -44,7 +44,7 @@ const headers = {
     "x-requested-with": "XMLHttpRequest",
 };
 
-app.get("/", async(req, res) => {
+app.get("/", async (req, res) => {
     res.send("Home page of phyo")
 })
 
@@ -239,28 +239,36 @@ app.post("/api/ask", async (req, res) => {
         const results = await Promise.all(
             foundInfluencers.map(async (influencer) => {
                 try {
-                    const response = await axios({
-                        method: "get",
-                        url: `https://i.instagram.com/api/v1/users/web_profile_info`,
-                        params: { username: influencer.user_name },
-                        headers,
-                    });
+                    // const response = await axios({
+                    //     method: "get",
+                    //     url: `https://i.instagram.com/api/v1/users/web_profile_info`,
+                    //     params: { username: influencer.user_name },
+                    //     headers,
+                    // });
 
-                    const data = response.data;
+                    // const data = response.data;
                     // console.log({data});
 
 
                     // Extract recent posts
-                    const posts = data.data.user.edge_owner_to_timeline_media.edges;
+                    const posts = data.posts;
+                    const totalLikes = 0;
+                    const totalComments = 0;
 
-                    const totalLikes = posts.reduce((sum, post) => sum + post.node.edge_liked_by.count, 0);
-                    const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
-                    const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
+                    posts.forEach((post) => {
+                        totalLikes += post.likes;
+                        totalComments += post.comments;
+                        // totalViews += post.views
+                    });
+
+                    // const totalLikes = posts.reduce((sum, post) => sum + post.likes);
+                    // const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
+                    // const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
                     const avgLikes = posts.length > 0 ? totalLikes / posts.length : 0;
-                    const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
+                    // const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
                     const avgComments = posts.length > 0 ? totalComments / posts.length : 0;
-                    const avgEngagement = (avgLikes + avgViews + avgComments) / influencer.instagramData.followers;
-                    const image = data.data.user.profile_pic_url;
+                    const avgEngagement = data.avg_engagement;
+                    const image = data.profile_image_link;
 
                     return {
                         ...influencer.toObject(),
@@ -268,7 +276,7 @@ app.post("/api/ask", async (req, res) => {
                         instagramData: {
                             ...influencer.instagramData,
                             averageLikes: Math.round(avgLikes),
-                            averageViews: Math.round(avgViews),
+                            // averageViews: Math.round(avgViews),
                             averageComments: Math.round(avgComments),
                             averageEngagement: avgEngagement.toFixed(2),
                         },
@@ -328,38 +336,69 @@ app.get("/details", async (req, res) => {
         }
 
         // Fetch additional data from Instagram API
-        const result = await axios({
-            method: "get",
-            url: `https://i.instagram.com/api/v1/users/web_profile_info`,
-            params: { username: userName },
-            headers,
+        // const result = await axios({
+        //     method: "get",
+        //     url: `https://i.instagram.com/api/v1/users/web_profile_info`,
+        //     params: { username: userName },
+        //     headers,
+        // });
+        // const posts = result.data.data.user.edge_owner_to_timeline_media.edges;
+
+        // // Calculate average likes and views
+        // const totalLikes = posts.reduce((sum, post) => sum + post.node.edge_liked_by.count, 0);
+        // const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
+        // const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
+        // const avgLikes = posts.length > 0 ? totalLikes / posts.length : 0;
+        // const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
+        // const avgComments = posts.length > 0 ? totalComments / posts.length : 0;
+        // const avgEngagement = (avgLikes + avgViews + avgComments) / influencerDetails.instagramData.followers;
+
+        // // Add additional details dynamically
+        // const instagramData = result.data.data.user;
+        // influencerDetails = {
+        //     ...influencerDetails._doc, // Spread the existing details from the database
+        //     image: instagramData?.profile_pic_url,
+        //     name: instagramData?.full_name,
+        //     userCount: instagramData?.edge_followed_by.count,
+        //     instagramData: {
+        //         ...influencerDetails.instagramData,
+        //         avgLikes,
+        //         avgViews,
+        //         avgComments,
+        //         avgEngagement,
+        //     }
+        // };
+
+        const posts = data.posts;
+        const totalLikes = 0;
+        const totalComments = 0;
+
+        posts.forEach((post) => {
+            totalLikes += post.likes;
+            totalComments += post.comments;
         });
-        const posts = result.data.data.user.edge_owner_to_timeline_media.edges;
 
-        // Calculate average likes and views
-        const totalLikes = posts.reduce((sum, post) => sum + post.node.edge_liked_by.count, 0);
-        const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
-        const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
+        // const totalLikes = posts.reduce((sum, post) => sum + post.likes);
+        // const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
+        // const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
         const avgLikes = posts.length > 0 ? totalLikes / posts.length : 0;
-        const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
+        // const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
         const avgComments = posts.length > 0 ? totalComments / posts.length : 0;
-        const avgEngagement = (avgLikes + avgViews + avgComments) / influencerDetails.instagramData.followers;
+        const avgEngagement = data.avg_engagement;
 
-        // Add additional details dynamically
-        const instagramData = result.data.data.user;
         influencerDetails = {
-            ...influencerDetails._doc, // Spread the existing details from the database
-            image: instagramData?.profile_pic_url,
-            name: instagramData?.full_name,
-            userCount: instagramData?.edge_followed_by.count,
-            instagramData: {
-                ...influencerDetails.instagramData,
-                avgLikes,
-                avgViews,
-                avgComments,
-                avgEngagement,
-            }
-        };
+                ...influencerDetails._doc, // Spread the existing details from the database
+                image: data?.profile_image_link,
+                name: data?.profile_name,
+                userCount: data?.followers,
+                instagramData: {
+                    ...influencerDetails.instagramData,
+                    avgLikes,
+                    // avgViews,
+                    avgComments,
+                    avgEngagement,
+                }
+            };
 
         return res.status(200).json({
             success: true,
@@ -374,6 +413,58 @@ app.get("/details", async (req, res) => {
         });
     }
 });
+
+app.patch("/editInfluencer/:username", async (req, res) => {
+    try {
+        const { username } = req.params
+        const { averageViews, averageComments, averageEngagement, averageLikes, image } = req.body
+        if (!username) {
+            return res.status(400).json({
+                success: false,
+                message: "Provide Username to edit the influencer"
+            })
+        }
+
+        if (!averageViews || !averageComments || !averageEngagement || !averageLikes || !image) {
+            return res.status(400).json({
+                success: false,
+                message: "Provide all the fields"
+            })
+        }
+
+        const foundInfluencer = await influencer.findOne({ user_name: username })
+
+        if (!foundInfluencer) {
+            return res.status(400).json({
+                success: false,
+                message: "Influencer with this username is not available in our records"
+            })
+        }
+
+        foundInfluencer.averageLikes = averageLikes;
+        foundInfluencer.averageViews = averageViews;
+        foundInfluencer.averageComments = averageComments;
+        foundInfluencer.averageEngagement = averageEngagement;
+        foundInfluencer.image = image
+
+        await foundInfluencer.save()
+
+        // await influencer.findOneAndUpdate({user_name: username}, {averageViews, averageComments, averageEngagement, averageLikes})
+
+        return res.status(200).json({
+            success: true,
+            message: "Influencer Updated",
+        })
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            success: false,
+            message: error?.message || "Internal server error",
+        });
+    }
+})
 
 
 app.listen(PORT, () => {

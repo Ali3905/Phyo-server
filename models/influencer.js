@@ -67,6 +67,11 @@ const influencerSchema = mongoose.Schema({
             oneMonthDigitalRights: { type: Number },
         },
     },
+    averageLikes: Number,
+    averageViews: Number,
+    averageComments: Number,
+    averageEngagement: Number,
+    image: String
 })
 
 const influencer = mongoose.model("influencer", influencerSchema)
