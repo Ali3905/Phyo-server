@@ -4,7 +4,8 @@ const cors = require("cors")
 const { OpenAI } = require("openai")
 const influencer = require("./models/influencer")
 const { connectToMongo } = require("./connections/db")
-const data = require("./data")
+const axios = require("axios")
+// const data = require("./data")
 
 const app = express()
 const PORT = 8000
@@ -234,47 +235,70 @@ app.post("/api/ask", async (req, res) => {
 
 
         const foundInfluencers = await influencer.find(query);
-        // console.log(foundInfluencers.length);
+        if (!foundInfluencers) {
+            return res.status(200).json({
+                success: true,
+                data: [],
+            })
+        }
+
+        let urls = [];
+
+        foundInfluencers.forEach((inf) => {
+            urls.push({ url: `https://www.instagram.com/${inf.user_name}/` });
+        });
+
+        const resp = await axios({
+            method: "post",
+            url: "https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l1vikfch901nx3by4&snapshot_id=s_m6ba9z4inowk9mrwe&include_errors=true",
+            data: urls,
+            headers: {
+                Authorization: `Bearer de8a3a9b9ffeaefbf16d559ab912f36407edc8406f05156021e3e69ddc2ad719`,
+                contentType: "application/json",
+            },
+        });
+
+        const snapshotId = resp.data.snapshot_id;
+
+        const getSnapshot = async () => {
+            const resp1 = await axios({
+                method: "get",
+                url: `https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}?format=json`,
+                headers: {
+                    Authorization: `Bearer de8a3a9b9ffeaefbf16d559ab912f36407edc8406f05156021e3e69ddc2ad719`,
+                },
+            });
+
+            if (resp1.data.status === 'running') {
+                console.log('Snapshot is not ready yet, retrying in 10s...');
+                await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 10 seconds
+                return getSnapshot(); // Retry
+            } else {
+                return resp1.data; // Return the ready snapshot
+            }
+        };
+
+        const re = await getSnapshot();
+        // console.log(snapshotData);
 
         const results = await Promise.all(
-            foundInfluencers.map(async (influencer) => {
+            foundInfluencers.map(async (influencer, i) => {
                 try {
-                    // const response = await axios({
-                    //     method: "get",
-                    //     url: `https://i.instagram.com/api/v1/users/web_profile_info`,
-                    //     params: { username: influencer.user_name },
-                    //     headers,
-                    // });
+                    console.log({ res: re[i] });
+                    const data = re[i];
 
-                    // const data = response.data;
-                    // console.log({data});
-
-
-                    // Extract recent posts
                     let posts = data.posts;
                     let totalLikes = 0;
                     let totalComments = 0;
-
-                    // console.log({posts});
-                    
-
                     posts.forEach((post) => {
                         totalLikes += post.likes;
                         totalComments += post.comments;
-                        // totalViews += post.views
                     });
 
-                    // const totalLikes = posts.reduce((sum, post) => sum + post.likes);
-                    // const totalViews = posts.reduce((sum, post) => sum + (post.node.video_view_count || 0), 0);
-                    // const totalComments = posts.reduce((sum, post) => sum + post.node.edge_media_to_comment.count, 0);
                     const avgLikes = posts.length > 0 ? totalLikes / posts.length : 0;
-                    // const avgViews = posts.length > 0 ? totalViews / posts.length : 0;
                     const avgComments = posts.length > 0 ? totalComments / posts.length : 0;
                     const avgEngagement = data.avg_engagement;
                     const image = data.profile_image_link;
-
-                    // console.log({avgLikes, avgComments, avgEngagement, image});
-                    
 
                     return {
                         ...influencer.toObject(),
@@ -282,7 +306,6 @@ app.post("/api/ask", async (req, res) => {
                         instagramData: {
                             ...influencer.instagramData,
                             averageLikes: Math.round(avgLikes),
-                            // averageViews: Math.round(avgViews),
                             averageComments: Math.round(avgComments),
                             averageEngagement: avgEngagement.toFixed(2),
                         },
@@ -315,7 +338,7 @@ app.post("/api/ask", async (req, res) => {
         console.error('Error fetching OpenAI response:', error.message);
         res.status(500).json({
             success: false,
-            error: error.message,
+            error,
         });
     }
 })
@@ -375,6 +398,40 @@ app.get("/details", async (req, res) => {
         //     }
         // };
 
+        const resp = await axios({
+            method: "post",
+            url: "https://api.brightdata.com/datasets/v3/trigger?dataset_id=gd_l1vikfch901nx3by4&snapshot_id=s_m6ba9z4inowk9mrwe&include_errors=true",
+            data: {url: `https://instagram.com/${influencerDetails.user_name}`},
+            headers: {
+                Authorization: `Bearer de8a3a9b9ffeaefbf16d559ab912f36407edc8406f05156021e3e69ddc2ad719`,
+                contentType: "application/json",
+            },
+        });
+
+        const snapshotId = resp.data.snapshot_id;
+
+        const getSnapshot = async () => {
+            const resp1 = await axios({
+                method: "get",
+                url: `https://api.brightdata.com/datasets/v3/snapshot/${snapshotId}?format=json`,
+                headers: {
+                    Authorization: `Bearer de8a3a9b9ffeaefbf16d559ab912f36407edc8406f05156021e3e69ddc2ad719`,
+                },
+            });
+
+            if (resp1.data.status === 'running') {
+                console.log('Snapshot is not ready yet, retrying in 10s...');
+                await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait for 10 seconds
+                return getSnapshot(); // Retry
+            } else {
+                return resp1.data; // Return the ready snapshot
+            }
+        };
+
+        const re = await getSnapshot();
+
+        const data = re[0];
+
         let posts = data.posts;
         let totalLikes = 0;
         let totalComments = 0;
@@ -393,18 +450,18 @@ app.get("/details", async (req, res) => {
         const avgEngagement = data.avg_engagement;
 
         influencerDetails = {
-                ...influencerDetails._doc, // Spread the existing details from the database
-                image: data?.profile_image_link,
-                name: data?.profile_name,
-                userCount: data?.followers,
-                instagramData: {
-                    ...influencerDetails.instagramData,
-                    avgLikes,
-                    // avgViews,
-                    avgComments,
-                    avgEngagement,
-                }
-            };
+            ...influencerDetails._doc, // Spread the existing details from the database
+            image: data?.profile_image_link,
+            name: data?.profile_name,
+            userCount: data?.followers,
+            instagramData: {
+                ...influencerDetails.instagramData,
+                avgLikes,
+                // avgViews,
+                avgComments,
+                avgEngagement,
+            }
+        };
 
         return res.status(200).json({
             success: true,
@@ -415,7 +472,7 @@ app.get("/details", async (req, res) => {
 
         return res.status(500).json({
             success: false,
-            message: error?.message || "Internal server error",
+            message: error?.response?.data?.message || "Internal server error",
         });
     }
 });
